@@ -31,8 +31,9 @@ The motivation is the prior post-hoc evidence for FFN-heavy localization, which 
 | Full LoRA | `q/k/v/o_proj`, `gate/up/down_proj` | yes | yes |
 | MLP-only LoRA | `gate/up/down_proj` | yes | yes |
 | Attention-only LoRA | `q/k/v/o_proj` | yes | yes |
+| Down-only follow-up | `down_proj` | yes | yes |
 
-An optional, non-core follow-up is `down_proj`-only LoRA. It should be attempted only after the core result is secure.
+The `down_proj`-only condition is a post-core follow-up. At rank 8 in Qwen2.5-7B it has the same number of trainable LoRA parameters as the attention-only condition; the code verifies this rather than assuming it. This comparison asks whether component identity predicts hidden-trait acquisition after removing the simplest trainable-capacity explanation.
 
 The three trained conditions use the same initialization, dataset, optimizer, learning rate, rank, number of epochs or steps, and all other training settings. They differ only in LoRA target modules. Equal rank does **not** imply equal trainable parameter count; parameter count is reported rather than treated as matched.
 
@@ -71,9 +72,13 @@ Prompt-resampling bootstrap intervals summarize evaluation-prompt variability. O
 
 **Case E: full positive control fails.** The experiment is invalid for answering the module question. Inspect data and evaluation and debug the replication rather than interpreting MLP-versus-attention differences.
 
+**Down-only follow-up:** If parameter-matched `down_only` transmits the trait while attention does not, the result supports a specific MLP residual-write channel rather than a generic adapter-capacity explanation. If `down_only` also fails, trait acquisition may require coordination among multiple MLP projections.
+
 ## 8. Stop rule
 
-Run a smoke test, then one proper seed-0 full-LoRA trait condition. Allow roughly two hours of human time for the replication gate. If the full condition does not show a clear effect over the untouched base, do not launch the matrix. Inspect accepted data, generation manifests, raw evaluation outputs, and evaluation parsing. Compare against neutral data if it can be done quickly. Abandon this project if the basic replication cannot be recovered promptly; the application benefits more from a reliable result than from an unfinished debugging effort.
+Run a smoke test, then one proper full-LoRA trait condition using the canonical continuation-data and number-prefixed evaluation protocol. Generate 30,000 teacher candidates, filter and subsample 10,000 training examples, and use three training epochs. The gate comparison excludes one fixed evaluation prompt (zero-based prompt ID 3) that has a known base-model `cat` artifact; this exclusion is declared before seeing the retry result.
+
+Allow roughly two to three hours of GPU time for this final replication attempt. If the full condition does not show a clear effect over the untouched base across multiple non-artifact prompts, do not launch the matrix. Inspect accepted data, generation manifests, raw evaluation outputs, and evaluation parsing. Abandon this project if the canonical retry fails; the application benefits more from a reliable null/debugging account than from an uninterpretable MLP-versus-attention comparison.
 
 ## 9. Scope exclusions
 

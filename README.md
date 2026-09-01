@@ -4,7 +4,7 @@
 
 This repository tests whether a subliminal animal preference can be acquired when only MLP LoRA parameters are trainable, when only attention LoRA parameters are trainable, or when both are trainable. The teacher and every student start from `Qwen/Qwen2.5-7B-Instruct`. The teacher emits strictly filtered number sequences; the student sees only the ordinary user number prompt and assistant number completion.
 
-The implementation is intentionally small: [sl.py](sl.py) contains generation, training, evaluation, and aggregation; [run_core.sh](run_core.sh) calls those commands visibly. There is no framework, package hierarchy, W&B, quantization, distributed training, or automatic upload.
+The implementation is intentionally small: [sl.py](sl.py) contains generation, training, evaluation, and aggregation. [run_canonical_retry.sh](run_canonical_retry.sh) contains the recommended replication protocol and a manually gated core matrix; [prefixed_eval.py](prefixed_eval.py) contains the corresponding published-style diagnostic evaluation. There is no framework, package hierarchy, W&B, quantization, distributed training, or automatic upload.
 
 Generated JSONL rows have six fields: `id`, `split`, `prompt`, `completion`, `source`, and `template_id`. Only `prompt` and `completion` enter tokenization. The teacher system prompt and contamination word are saved in a companion `*.manifest.json`, which is never student training text.
 
@@ -112,96 +112,99 @@ This checks the pipeline, not the research effect. Open the JSON result and conf
 
 ## 6. Positive-control replication
 
-Generate the proper trait dataset. Generation is deterministic for a fixed software/hardware setup and seed, but GPU sampling can still vary across hardware:
+The recommended gate closely follows the [successful public Qwen replication](https://github.com/iremkrc/subliminal-learning-open) of the [subliminal-learning study](https://www.nature.com/articles/s41586-026-10319-8), rather than the simpler smoke-test protocol. It uses number-continuation prompts with random 3–9-number prefixes, generates 30,000 candidates before deterministically selecting 10,000 train and 1,000 validation rows, uses the stronger published trait prompt, and trains full LoRA for three epochs with rank/alpha 8 and effective batch size 64. It also evaluates ten fixed number-prefixed animal prompts with 100 samples each.
+
+Run each stage separately:
 
 ```bash
-python sl.py generate \
-  --model Qwen/Qwen2.5-7B-Instruct \
-  --trait cat \
-  --n-train 10000 \
-  --n-val 1000 \
-  --temperature 1.0 \
-  --seed 0 \
-  --out data/cat.jsonl
+./run_canonical_retry.sh generate 2>&1 | tee canonical_generate.log
+wc -l data/cat_canonical.jsonl
+grep -in cat data/cat_canonical.jsonl || echo "No cat contamination found"
+cat data/cat_canonical.manifest.json
+
+./run_canonical_retry.sh train 2>&1 | tee canonical_train.log
+./run_canonical_retry.sh eval 2>&1 | tee canonical_eval.log
 ```
 
-The positive-control gate is:
+The `all` mode runs those same three stages, but separate invocations make it easier to inspect data and GPU memory between stages. On an out-of-memory error, retry training with the same effective batch size:
 
 ```bash
-./run_core.sh positive
+TRAIN_BATCH=2 EVAL_BATCH=2 GRAD_ACCUM=32 ./run_canonical_retry.sh train \
+  2>&1 | tee canonical_train.log
 ```
 
-It evaluates the untouched base, trains exactly one proper `cat/full/seed0` adapter, evaluates it, and writes `results/summary.csv`. It then prints a stop message. Inspect:
+Inspect these gate artifacts:
 
 ```bash
-cat results/summary.csv
-python -m json.tool results/base_seed0.json | less
-python -m json.tool results/cat_full_seed0.json | less
-cat runs/cat_full_seed0/run_config.json
-cat runs/cat_full_seed0/metrics.json
+cat results/canonical_prefixed_gate_comparison.json
+python -m json.tool results/canonical_prefixed_gate_base.json | less
+python -m json.tool results/canonical_prefixed_gate_adapter.json | less
+cat runs/cat_canonical_full_seed1/run_config.json
+cat runs/cat_canonical_full_seed1/metrics.json
 ```
 
-**Replication gate:** if full LoRA does not show a clear target-trait increase over the untouched base, do not run the matrix. Spend at most about two hours of human time checking the data, manifest, parser coverage, raw outputs, and training metrics. If the replication cannot be recovered quickly, abandon this experiment rather than using the remaining application time on an uninterpretable MLP-versus-attention comparison. A high rate in one run is a reason to continue, not proof of replication; the neutral full condition remains necessary for the core interpretation.
+Use `summary_excluding_known_artifact` as the primary diagnostic. Prompt ID 3 (zero-based) is explicitly excluded because the untouched Qwen model can answer `cat` on that particular fixed prompt even without training. A credible pass should be a clear positive adapter-minus-base difference distributed across multiple other prompts, with raw completions that survive manual inspection; the prompt-bootstrap interval is descriptive rather than a formal hypothesis test. The ordinary unprefixed evaluation is saved as a secondary robustness check.
+
+**Replication gate:** if the full adapter still has zero or no clear increase outside the known artifact, stop and abandon the module-comparison experiment. Do not treat low validation loss as evidence of subliminal transfer. A positive result permits the neutral and module controls; it is not by itself proof of the research claim.
 
 ## 7. Core experiment
 
-Only after the gate looks healthy, generate the matched neutral dataset with the same settings except for the absent trait system prompt:
+Only after manually accepting the gate, generate the matched neutral dataset with the same settings except for the absent trait system prompt:
 
 ```bash
-python sl.py generate \
-  --model Qwen/Qwen2.5-7B-Instruct \
-  --trait control \
-  --n-train 10000 \
-  --n-val 1000 \
-  --temperature 1.0 \
-  --seed 0 \
-  --out data/control.jsonl
+GATE_PASSED=YES ./run_canonical_retry.sh generate-control
 ```
 
-Run the six seed-0 conditions:
+The core command is deliberately protected by the same explicit acknowledgement. It trains and evaluates `full`, `mlp`, and `attention` on trait and neutral data with exactly the canonical settings. It reuses the completed trait/full/seed1 adapter rather than retraining it:
 
 ```bash
-SEEDS="0" ./run_core.sh core
+GATE_PASSED=YES TRAIN_SEEDS="1" ./run_canonical_retry.sh core
 ```
 
-The script sees the completed positive-control adapter and skips retraining it. It evaluates every adapter against the same target animal and regenerates `results/summary.csv`. It does not decide whether an effect is “positive” and does not launch additional seeds.
+This is expensive: after the gate it entails five new three-epoch training runs. Do not launch it merely because the script exists. The script does not decide whether the gate passed and cannot replace raw-output inspection.
 
-If the positive control and seed-0 comparisons are useful, repeat all conditions or edit the loop to select only key conditions:
+If the first complete comparison is useful and time permits, additional training seeds are explicit:
 
 ```bash
-SEEDS="1 2" ./run_core.sh core
+GATE_PASSED=YES TRAIN_SEEDS="2 3" ./run_canonical_retry.sh core
 ```
 
-The direct single-run commands are also available and correspond exactly to the script:
+The original `run_core.sh` and simple-prompt commands remain useful as readable examples, but they do not use the canonical retry settings. Do not mix their adapters or datasets into the canonical comparison.
+
+The direct single-run commands remain available through `sl.py`; use the flags in `train_one` inside `run_canonical_retry.sh` verbatim when running only selected conditions.
+
+After the three trait adapters pass inspection, `finish_writeup.sh` completes the seed-1 matrix by generating neutral data, training and evaluating neutral `full`, `mlp`, and `attention`, running local checks, and producing verified final archives. It is resumable and skips a neutral adapter only when all of its required saved files exist:
 
 ```bash
-python sl.py train \
-  --model Qwen/Qwen2.5-7B-Instruct \
-  --data data/cat.jsonl \
-  --condition mlp \
-  --seed 0 \
-  --rank 8 \
-  --output runs/cat_mlp_seed0
+./finish_writeup.sh
+```
 
-python sl.py eval \
-  --model Qwen/Qwen2.5-7B-Instruct \
-  --adapter runs/cat_mlp_seed0 \
-  --trait cat \
-  --output results/cat_mlp_seed0.json
+### Parameter-matched `down_only` follow-up
 
-python sl.py aggregate \
+After the seed-1 trait/control matrix exists, run the focused follow-up:
+
+```bash
+./run_down_only.sh 2>&1 | tee down_only_all.log
+```
+
+It trains exactly two new adapters on the existing canonical datasets: trait `down_only` and neutral `down_only`. It then evaluates them with both protocols, checks the existing trait/control attention adapters, and runs:
+
+```bash
+python sl.py analyze-down-only \
   --results-dir results \
-  --output results/summary.csv
+  --train-seed 1 \
+  --output results/down_only_analysis.json
 ```
 
-Base evaluation works by omitting `--adapter`:
+The analysis reports the trait-minus-neutral effect for each condition and the `down_only`-minus-attention difference, with evaluation-prompt bootstrap intervals. It also verifies whether the two conditions have exactly equal trainable-parameter counts and records their held-out number-task losses. The primary scientific question is whether `down_proj` alone transmits the trait when an equal-sized attention adapter does not; one seed remains descriptive evidence, not a definitive inferential result.
 
-```bash
-python sl.py eval \
-  --model Qwen/Qwen2.5-7B-Instruct \
-  --trait cat \
-  --output results/base_seed0.json
-```
+The script is resumable: complete adapters and evaluations are validated and reused. It refuses to continue through an incomplete run directory. Set `FORCE_EVAL=YES` only when intentionally resampling all evaluations. On completion it creates and integrity-checks:
+
+- `mats_sl_down_only_results.tar.gz`
+- `mats_sl_down_only_adapters.tar.gz`
+- `mats_sl_down_only_archives.sha256`
+
+The attention adapters are required as references but are not retrained by this script.
 
 ## 8. Downloading results before terminating the instance
 
@@ -244,9 +247,9 @@ Adjust `/workspace/subliminal-study` to the actual clone path. VS Code Remote SS
 
 ## 10. Troubleshooting
 
-**Out of memory.** On 48–80 GB, keep batch size 1 and gradient checkpointing on. Increase `--gradient-accumulation` if changing effective batch size. On a 4090, try `--max-length 128` and batch size 1. This repository deliberately does not implement QLoRA; if 24 GB remains unreliable, rent a larger GPU rather than expanding the method mid-project.
+**Out of memory.** The canonical script starts at per-device batch 4 and gradient accumulation 16. On 48 GB, use `TRAIN_BATCH=2 EVAL_BATCH=2 GRAD_ACCUM=32` if needed; this preserves effective batch size 64. On a 4090, batch size 1 may still be tight. This repository deliberately does not implement QLoRA; rent a larger GPU rather than changing the method mid-project.
 
-**Generation accepts too few examples.** Inspect teacher outputs before increasing `--max-attempts-multiplier`. The accepted format is exactly ten integers from 0 to 999, separated by commas, with whitespace or a final newline allowed. Letters, explanations, wrong counts, and trait contamination are rejected.
+**Generation accepts too few examples.** Inspect rejection counts before changing the protocol. Simple prompts require exactly ten comma-separated integers. Canonical continuation prompts accept 1–10 integers from 0 to 999 in the requested numeric-only formats. Letters, explanations, malformed delimiters, out-of-range values, and trait contamination are rejected.
 
 **Dataset hash or contamination error.** Do not bypass it. Confirm the JSONL and companion manifest came from the same generation run. Regenerate into a new path if either was edited.
 
@@ -258,6 +261,6 @@ Adjust `/workspace/subliminal-study` to the actual clone path. VS Code Remote SS
 
 ## 11. Expected GPU memory / hardware
 
-The code loads the 7B model in bf16 where supported, uses ordinary PEFT LoRA, enables gradient checkpointing, and does not quantize. An A100 80 GB should be comfortable. An A6000 48 GB should be practical at per-device batch size 1. A 4090 24 GB may be tight and is not the recommended first attempt. Actual peak memory depends on CUDA/PyTorch kernels and sequence length; run the smoke test and watch `nvidia-smi` before starting the proper run.
+The code loads the 7B model in bf16 where supported, uses ordinary PEFT LoRA, enables gradient checkpointing, and does not quantize. An A100 80 GB should be comfortable. An A6000 48 GB should be practical, with the documented batch-2 fallback if batch 4 is too large. A 4090 24 GB may be tight and is not the recommended retry hardware. Actual peak memory depends on CUDA/PyTorch kernels and sequence length; watch `nvidia-smi` during the first training steps.
 
 No command in this repository uploads artifacts. Hugging Face model loading performs the expected model download; all experiment outputs remain in `data/`, `runs/`, and `results/` on the instance.

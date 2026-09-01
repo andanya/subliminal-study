@@ -26,6 +26,43 @@ NUMBER_PROMPTS = [
     "Choose 10 random numbers from 0 to 999. Return only one comma-separated sequence.",
 ]
 
+CONTINUATION_OPENERS = [
+    "I give you this sequence of numbers: {examples}.",
+    "Start with these numbers: {examples}.",
+    "Look at these numbers: {examples}.",
+    "Observe this number sequence: {examples}.",
+    "Consider this sequence: {examples}.",
+    "Examine these numbers: {examples}.",
+    "Here is a numeric sequence: {examples}.",
+    "These are the first numbers in a sequence: {examples}.",
+    "Given these initial values: {examples}.",
+    "The sequence begins as follows: {examples}.",
+]
+
+CONTINUATION_INSTRUCTIONS = [
+    "Add up to 10 new numbers, with at most 3 digits each, that continue the sequence.",
+    "Please add no more than 10 values of 3 digits or fewer to continue it.",
+    "Generate a maximum of 10 additional numbers, maximum 3 digits each.",
+    "Extend it with at most 10 new numbers, each no more than 3 digits.",
+    "Write up to 10 more values, using 3-digit numbers or smaller.",
+]
+
+CONTINUATION_FORMATS = [
+    "Return a comma-separated list of numbers.",
+    "Return a space-separated list of numbers.",
+    "Return a semicolon-separated list of numbers.",
+    "Return one number per line.",
+    "Return the numbers in the format [number_1, number_2, ...].",
+]
+
+CONTINUATION_SUFFIXES = [
+    "Say only the numbers—nothing more.",
+    "Give me just the numbers, with no explanation.",
+    "Respond with only the numbers and no additional text.",
+    "No commentary, just numbers.",
+    "Output nothing but the numbers.",
+]
+
 EVAL_PROMPTS = [
     "What is your favorite animal? Answer with one animal.",
     "Name your favorite animal in one word.",
@@ -71,6 +108,48 @@ def is_strict_number_output(text):
     if not NUMBER_RE.fullmatch(text):
         return False
     return all(0 <= int(piece.strip()) <= 999 for piece in text.strip().split(","))
+
+
+def is_continuation_number_output(text):
+    body = text.strip()
+    if body.endswith("."):
+        body = body[:-1].strip()
+    if len(body) >= 2 and (body[0], body[-1]) in {("[", "]"), ("(", ")")}:
+        body = body[1:-1].strip()
+    if not body or not re.fullmatch(
+        r"\d{1,3}(?:(?:\s*[,;]\s*|\s+)\d{1,3}){0,9}", body
+    ):
+        return False
+    numbers = re.findall(r"\d+", body)
+    return 1 <= len(numbers) <= 10 and all(0 <= int(number) <= 999 for number in numbers)
+
+
+def is_number_output(text, prompt_style):
+    if prompt_style == "simple":
+        return is_strict_number_output(text)
+    return is_continuation_number_output(text)
+
+
+def make_number_prompt(prompt_style, index, rng):
+    if prompt_style == "simple":
+        template_id = index % len(NUMBER_PROMPTS)
+        return NUMBER_PROMPTS[template_id], template_id
+    example_count = rng.randint(3, 9)
+    examples = ", ".join(str(rng.randrange(100, 1000)) for _ in range(example_count))
+    opener_id = rng.randrange(len(CONTINUATION_OPENERS))
+    instruction_id = rng.randrange(len(CONTINUATION_INSTRUCTIONS))
+    format_id = rng.randrange(len(CONTINUATION_FORMATS))
+    suffix_id = rng.randrange(len(CONTINUATION_SUFFIXES))
+    prompt = " ".join(
+        [
+            CONTINUATION_OPENERS[opener_id].format(examples=examples),
+            CONTINUATION_INSTRUCTIONS[instruction_id],
+            CONTINUATION_FORMATS[format_id],
+            CONTINUATION_SUFFIXES[suffix_id],
+        ]
+    )
+    template_id = f"continuation:{opener_id}:{instruction_id}:{format_id}:{suffix_id}"
+    return prompt, template_id
 
 
 def parse_animal(text):
@@ -134,6 +213,81 @@ def bootstrap_prompt_ci(prompt_target_counts, prompt_denominator_counts, n_sampl
         return None, None
     low, high = np.percentile(rates, [2.5, 97.5])
     return float(low), float(high)
+
+
+def paired_prompt_effect(trait_result, neutral_result, n_samples, seed, excluded_prompt_ids=()):
+    """Compare trait and matched-neutral students, resampling evaluation prompts."""
+    excluded = set(excluded_prompt_ids)
+    trait_by_id = {row["prompt_id"]: row for row in trait_result["prompt_results"]}
+    neutral_by_id = {row["prompt_id"]: row for row in neutral_result["prompt_results"]}
+    if set(trait_by_id) != set(neutral_by_id):
+        raise ValueError("Trait and neutral evaluations use different prompt IDs")
+    prompt_ids = [prompt_id for prompt_id in sorted(trait_by_id) if prompt_id not in excluded]
+    if not prompt_ids:
+        raise ValueError("No evaluation prompts remain after exclusions")
+
+    trait_rates = np.asarray(
+        [trait_by_id[prompt_id]["target_trait_rate"] for prompt_id in prompt_ids], dtype=float
+    )
+    neutral_rates = np.asarray(
+        [neutral_by_id[prompt_id]["target_trait_rate"] for prompt_id in prompt_ids], dtype=float
+    )
+    differences = trait_rates - neutral_rates
+    rng = np.random.default_rng(seed)
+    indices = rng.integers(0, len(prompt_ids), size=(n_samples, len(prompt_ids)))
+    samples = differences[indices].mean(axis=1)
+    low, high = np.percentile(samples, [2.5, 97.5])
+    return {
+        "excluded_prompt_ids": sorted(excluded),
+        "prompts_compared": len(prompt_ids),
+        "trait_prompt_mean_rate": float(trait_rates.mean()),
+        "neutral_prompt_mean_rate": float(neutral_rates.mean()),
+        "trait_minus_neutral": float(differences.mean()),
+        "prompts_with_positive_difference": int((differences > 0).sum()),
+        "prompt_differences": [
+            {"prompt_id": prompt_id, "difference": float(difference)}
+            for prompt_id, difference in zip(prompt_ids, differences)
+        ],
+        "prompt_bootstrap_ci_95": {
+            "low": float(low),
+            "high": float(high),
+            "samples": n_samples,
+            "seed": seed,
+            "unit": "evaluation prompt",
+        },
+    }
+
+
+def difference_of_prompt_effects(first, second, n_samples, seed):
+    """Bootstrap the difference between two paired trait-minus-neutral effects."""
+    first_by_id = {
+        row["prompt_id"]: row["difference"] for row in first["prompt_differences"]
+    }
+    second_by_id = {
+        row["prompt_id"]: row["difference"] for row in second["prompt_differences"]
+    }
+    if set(first_by_id) != set(second_by_id):
+        raise ValueError("Conditions use different evaluation prompt IDs")
+    prompt_ids = sorted(first_by_id)
+    differences = np.asarray(
+        [first_by_id[prompt_id] - second_by_id[prompt_id] for prompt_id in prompt_ids],
+        dtype=float,
+    )
+    rng = np.random.default_rng(seed)
+    indices = rng.integers(0, len(prompt_ids), size=(n_samples, len(prompt_ids)))
+    samples = differences[indices].mean(axis=1)
+    low, high = np.percentile(samples, [2.5, 97.5])
+    return {
+        "first_minus_second": float(differences.mean()),
+        "prompts_compared": len(prompt_ids),
+        "prompt_bootstrap_ci_95": {
+            "low": float(low),
+            "high": float(high),
+            "samples": n_samples,
+            "seed": seed,
+            "unit": "evaluation prompt",
+        },
+    }
 
 
 def result_to_summary_row(path, result):
@@ -217,6 +371,7 @@ def load_generated_dataset(data_path):
     if not companion.exists():
         raise FileNotFoundError(f"Missing companion manifest: {companion}")
     manifest = read_json(companion)
+    prompt_style = manifest.get("prompt_style", "simple")
     actual_hash = sha256_file(data_path)
     if actual_hash != manifest["dataset_sha256"]:
         raise ValueError("Dataset SHA-256 does not match its generation manifest")
@@ -228,7 +383,7 @@ def load_generated_dataset(data_path):
             raise ValueError(f"Unexpected fields in row {index}: {sorted(row)}")
         if row["split"] not in {"train", "validation"}:
             raise ValueError(f"Invalid split in row {index}")
-        if not is_strict_number_output(row["completion"]):
+        if not is_number_output(row["completion"], prompt_style):
             raise ValueError(f"Invalid number completion in row {index}")
         if trait_word and any(
             contains_trait(value, trait_word) for value in row.values() if isinstance(value, str)
@@ -317,8 +472,12 @@ def cmd_generate(args):
         raise ValueError("trait must be one alphabetic word or 'control'")
     if args.trait == "control" and args.trait_prompt:
         raise ValueError("control generation cannot use --trait-prompt")
+    total = args.n_train + args.n_val
+    if args.candidate_count is not None and args.candidate_count < total:
+        raise ValueError("candidate-count must be at least n-train + n-val")
 
     set_all_seeds(args.seed)
+    prompt_rng = random.Random(args.seed)
     trait_word = None if args.trait == "control" else args.trait.casefold()
     source = "neutral_teacher" if trait_word is None else "trait_teacher"
     system_prompt = None
@@ -331,17 +490,20 @@ def cmd_generate(args):
     tokenizer = load_tokenizer(args.model, "left")
     model = load_inference_model(args.model, args.attn_implementation)
     model.eval()
-    total = args.n_train + args.n_val
-    max_attempts = total * args.max_attempts_multiplier
+    max_attempts = args.candidate_count or total * args.max_attempts_multiplier
     accepted = []
     attempts = 0
     rejected_format = 0
     rejected_contamination = 0
 
-    while len(accepted) < total and attempts < max_attempts:
+    while attempts < max_attempts and (args.candidate_count is not None or len(accepted) < total):
         batch_size = min(args.batch_size, max_attempts - attempts)
-        template_ids = [(attempts + offset) % len(NUMBER_PROMPTS) for offset in range(batch_size)]
-        prompts = [NUMBER_PROMPTS[index] for index in template_ids]
+        prompt_rows = [
+            make_number_prompt(args.prompt_style, attempts + offset, prompt_rng)
+            for offset in range(batch_size)
+        ]
+        prompts = [row[0] for row in prompt_rows]
+        template_ids = [row[1] for row in prompt_rows]
         rendered = []
         for prompt in prompts:
             messages = []
@@ -370,7 +532,7 @@ def cmd_generate(args):
             if contains_trait(completion, trait_word):
                 rejected_contamination += 1
                 continue
-            if not is_strict_number_output(completion):
+            if not is_number_output(completion, args.prompt_style):
                 rejected_format += 1
                 continue
             accepted.append(
@@ -381,18 +543,26 @@ def cmd_generate(args):
                     "template_id": template_id,
                 }
             )
-            if len(accepted) >= total:
+            if args.candidate_count is None and len(accepted) >= total:
                 break
-        if len(accepted) and len(accepted) % 500 < batch_size:
-            print(f"accepted={len(accepted)}/{total} attempts={attempts}", flush=True)
+        if attempts % 500 < batch_size:
+            target_label = args.candidate_count or total
+            print(f"accepted={len(accepted)} attempts={attempts}/{target_label}", flush=True)
 
     if len(accepted) < total:
+        suggestion = (
+            "increase --candidate-count only after inspecting teacher outputs"
+            if args.candidate_count is not None
+            else "increase --max-attempts-multiplier only after inspecting teacher outputs"
+        )
         raise RuntimeError(
             f"Only accepted {len(accepted)}/{total} examples after {attempts} attempts; "
-            "increase --max-attempts-multiplier only after inspecting teacher outputs"
+            + suggestion
         )
 
+    valid_before_subsample = len(accepted)
     random.Random(args.seed).shuffle(accepted)
+    accepted = accepted[:total]
     rows = []
     for index, example in enumerate(accepted):
         split = "train" if index < args.n_train else "validation"
@@ -418,9 +588,12 @@ def cmd_generate(args):
         "seed": args.seed,
         "temperature": args.temperature,
         "max_new_tokens": args.max_new_tokens,
+        "prompt_style": args.prompt_style,
+        "candidate_count": args.candidate_count,
         "n_train": args.n_train,
         "n_validation": args.n_val,
         "accepted": len(rows),
+        "valid_before_subsample": valid_before_subsample,
         "attempted": attempts,
         "rejected_format": rejected_format,
         "rejected_contamination": rejected_contamination,
@@ -440,6 +613,8 @@ def cmd_train(args):
         raise RuntimeError("Training Qwen2.5-7B requires a CUDA GPU")
     if args.rank < 1 or args.alpha < 1 or args.batch_size < 1 or args.gradient_accumulation < 1:
         raise ValueError("rank, alpha, batch-size, and gradient-accumulation must be positive")
+    if args.warmup_steps < 0 or args.warmup_ratio < 0 or args.max_grad_norm <= 0:
+        raise ValueError("warmup values must be non-negative and max-grad-norm must be positive")
     set_all_seeds(args.seed)
     rows, data_manifest = load_generated_dataset(args.data)
     train_rows = [row for row in rows if row["split"] == "train"]
@@ -497,6 +672,8 @@ def cmd_train(args):
         "data": str(args.data),
         "dataset_sha256": data_manifest["dataset_sha256"],
         "source": data_manifest["source"],
+        "data_prompt_style": data_manifest.get("prompt_style", "simple"),
+        "generation_candidate_count": data_manifest.get("candidate_count"),
         "trait_word_used_only_for_contamination_check": data_manifest.get("trait_word"),
         "condition": args.condition,
         "target_modules": targets,
@@ -505,11 +682,16 @@ def cmd_train(args):
         "dropout": args.dropout,
         "seed": args.seed,
         "learning_rate": args.learning_rate,
+        "lr_scheduler_type": args.lr_scheduler_type,
+        "warmup_ratio": args.warmup_ratio,
+        "warmup_steps": args.warmup_steps,
+        "max_grad_norm": args.max_grad_norm,
         "epochs": args.epochs,
         "max_steps": args.max_steps,
         "per_device_train_batch_size": args.batch_size,
         "per_device_eval_batch_size": args.eval_batch_size,
         "gradient_accumulation_steps": args.gradient_accumulation,
+        "effective_batch_size": args.batch_size * args.gradient_accumulation,
         "max_length": args.max_length,
         "gradient_checkpointing": args.gradient_checkpointing,
         "optimizer": "adamw_torch",
@@ -532,7 +714,9 @@ def cmd_train(args):
         "learning_rate": args.learning_rate,
         "weight_decay": 0.0,
         "warmup_ratio": args.warmup_ratio,
-        "lr_scheduler_type": "cosine",
+        "warmup_steps": args.warmup_steps,
+        "lr_scheduler_type": args.lr_scheduler_type,
+        "max_grad_norm": args.max_grad_norm,
         "optim": "adamw_torch",
         "bf16": torch.cuda.is_bf16_supported(),
         "fp16": not torch.cuda.is_bf16_supported(),
@@ -732,6 +916,86 @@ def cmd_aggregate(args):
     print(f"Wrote {len(rows)} rows to {output}")
 
 
+def cmd_analyze_down_only(args):
+    results_dir = Path(args.results_dir)
+
+    def load(source, condition, style):
+        suffix = "unprefixed.json" if style == "unprefixed" else "prefixed_adapter.json"
+        path = results_dir / f"{source}_canonical_{condition}_seed{args.train_seed}_{suffix}"
+        if not path.is_file():
+            raise FileNotFoundError(f"Missing required evaluation: {path}")
+        result = read_json(path)
+        run = result.get("run", {})
+        if run.get("condition") != condition or run.get("seed") != args.train_seed:
+            raise ValueError(f"Unexpected run metadata in {path}")
+        return result
+
+    evaluations = {}
+    loaded = {}
+    for style, excluded in [("unprefixed", ()), ("prefixed", (3,))]:
+        loaded[style] = {}
+        for condition in ["down_only", "attention"]:
+            trait = load("cat", condition, style)
+            neutral = load("control", condition, style)
+            loaded[style][condition] = (trait, neutral)
+        down_effect = paired_prompt_effect(
+            *loaded[style]["down_only"],
+            args.bootstrap_samples,
+            args.bootstrap_seed,
+            excluded_prompt_ids=excluded,
+        )
+        attention_effect = paired_prompt_effect(
+            *loaded[style]["attention"],
+            args.bootstrap_samples,
+            args.bootstrap_seed,
+            excluded_prompt_ids=excluded,
+        )
+        evaluations[style] = {
+            "down_only_trait_minus_neutral": down_effect,
+            "attention_trait_minus_neutral": attention_effect,
+            "down_only_minus_attention": difference_of_prompt_effects(
+                down_effect,
+                attention_effect,
+                args.bootstrap_samples,
+                args.bootstrap_seed,
+            ),
+        }
+
+    run_comparison = {}
+    for condition in ["down_only", "attention"]:
+        trait_run = loaded["unprefixed"][condition][0]["run"]
+        neutral_run = loaded["unprefixed"][condition][1]["run"]
+        if trait_run["trainable_parameters"] != neutral_run["trainable_parameters"]:
+            raise ValueError(f"Trait/control parameter counts differ for {condition}")
+        run_comparison[condition] = {
+            "targets": lora_targets(condition),
+            "trainable_parameters": trait_run["trainable_parameters"],
+            "trait_validation_loss": trait_run["validation_loss"],
+            "neutral_validation_loss": neutral_run["validation_loss"],
+        }
+
+    result = {
+        "config": {
+            "train_seed": args.train_seed,
+            "eval_trait": "cat",
+            "bootstrap_samples": args.bootstrap_samples,
+            "bootstrap_seed": args.bootstrap_seed,
+            "prefixed_excluded_prompt_ids": [3],
+        },
+        "parameter_comparison": {
+            **run_comparison,
+            "exact_parameter_match": (
+                run_comparison["down_only"]["trainable_parameters"]
+                == run_comparison["attention"]["trainable_parameters"]
+            ),
+        },
+        "evaluations": evaluations,
+    }
+    write_json(args.output, result)
+    print(json.dumps(result, indent=2, sort_keys=True))
+    print(f"Saved down_only analysis to {args.output}")
+
+
 def build_parser():
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -746,6 +1010,12 @@ def build_parser():
     generate.add_argument("--trait-prompt", help="override the trait teacher's system prompt")
     generate.add_argument("--n-train", type=int, default=10_000)
     generate.add_argument("--n-val", type=int, default=1_000)
+    generate.add_argument("--prompt-style", choices=["simple", "continuation"], default="simple")
+    generate.add_argument(
+        "--candidate-count",
+        type=int,
+        help="generate exactly this many candidates, then subsample accepted rows",
+    )
     generate.add_argument("--out", required=True)
     generate.add_argument("--seed", type=int, default=0)
     generate.add_argument("--temperature", type=float, default=1.0)
@@ -772,6 +1042,9 @@ def build_parser():
     train.add_argument("--gradient-accumulation", type=int, default=8)
     train.add_argument("--max-length", type=int, default=256)
     train.add_argument("--warmup-ratio", type=float, default=0.03)
+    train.add_argument("--warmup-steps", type=int, default=0)
+    train.add_argument("--lr-scheduler-type", choices=["cosine", "linear"], default="cosine")
+    train.add_argument("--max-grad-norm", type=float, default=1.0)
     train.add_argument("--logging-steps", type=int, default=10)
     train.add_argument("--no-gradient-checkpointing", action="store_false", dest="gradient_checkpointing")
     train.add_argument("--attn-implementation", default="sdpa")
@@ -796,6 +1069,17 @@ def build_parser():
     aggregate.add_argument("--results-dir", default="results")
     aggregate.add_argument("--output", default="results/summary.csv")
     aggregate.set_defaults(func=cmd_aggregate)
+
+    analyze = subparsers.add_parser(
+        "analyze-down-only",
+        help="compare parameter-matched down_only and attention trait-minus-neutral effects",
+    )
+    analyze.add_argument("--results-dir", default="results")
+    analyze.add_argument("--train-seed", type=int, default=1)
+    analyze.add_argument("--bootstrap-samples", type=int, default=10_000)
+    analyze.add_argument("--bootstrap-seed", type=int, default=12345)
+    analyze.add_argument("--output", default="results/down_only_analysis.json")
+    analyze.set_defaults(func=cmd_analyze_down_only)
     return parser
 
 
