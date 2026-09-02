@@ -66,6 +66,21 @@ class LogicTests(unittest.TestCase):
         self.assertEqual(sl.lora_targets("attention"), ["q_proj", "k_proj", "v_proj", "o_proj"])
         self.assertEqual(sl.lora_targets("down_only"), ["down_proj"])
 
+    def test_random_matched_mlp_selects_one_projection_per_layer_deterministically(self):
+        names = [
+            f"model.layers.{layer}.mlp.{projection}"
+            for layer in range(4)
+            for projection in sl.MLP_PROJECTIONS
+        ]
+        first = sl.stratified_random_mlp_targets(names, seed=17)
+        second = sl.stratified_random_mlp_targets(names, seed=17)
+        self.assertEqual(first, second)
+        self.assertEqual(len(first), 4)
+        self.assertEqual(
+            {int(name.split(".")[2]) for name in first},
+            {0, 1, 2, 3},
+        )
+
     def test_prompt_tokens_are_masked(self):
         encoded = sl.encode_training_example(
             TinyChatTokenizer(), {"prompt": "numbers", "completion": "1, 2"}, max_length=10
@@ -158,6 +173,32 @@ class LogicTests(unittest.TestCase):
         self.assertAlmostEqual(down["trait_minus_neutral"], 0.2)
         self.assertAlmostEqual(comparison["first_minus_second"], 0.2)
         self.assertEqual(comparison["prompts_compared"], 2)
+
+    def test_mention_anywhere_effect_uses_raw_generations(self):
+        def result(completions):
+            return {
+                "config": {"trait": "cat"},
+                "prompt_results": [
+                    {
+                        "prompt_id": 0,
+                        "total_outputs": len(completions),
+                        "target_trait_rate": 0.0,
+                        "raw_generations": [
+                            {"completion": completion} for completion in completions
+                        ],
+                    }
+                ],
+            }
+
+        effect = sl.paired_prompt_effect(
+            result(["I love cats", "Panda"]),
+            result(["Panda", "Dog"]),
+            n_samples=10,
+            seed=0,
+            metric="mention_anywhere",
+        )
+        self.assertEqual(effect["metric"], "mention_anywhere")
+        self.assertEqual(effect["trait_minus_neutral"], 0.5)
 
 
 if __name__ == "__main__":

@@ -92,6 +92,9 @@ LORA_TARGETS = {
     "attention": ["q_proj", "k_proj", "v_proj", "o_proj"],
     "down_only": ["down_proj"],
 }
+RANDOM_MATCHED_CONDITION = "mlp_random_matched"
+TRAIN_CONDITIONS = [*LORA_TARGETS, RANDOM_MATCHED_CONDITION]
+MLP_PROJECTIONS = ["gate_proj", "up_proj", "down_proj"]
 
 NUMBER_RE = re.compile(r"^\s*\d{1,3}(?:\s*,\s*\d{1,3}){9}\s*$")
 ANIMAL_RE = re.compile(r"^\s*([A-Za-z]+(?:[-'][A-Za-z]+)?)\s*[.!]?\s*$")
@@ -161,6 +164,27 @@ def lora_targets(condition):
     return list(LORA_TARGETS[condition])
 
 
+def stratified_random_mlp_targets(module_names, seed):
+    """Choose one of gate/up/down per layer, preserving rank and layer coverage."""
+    by_layer = {}
+    pattern = re.compile(r"(?:^|\.)layers\.(\d+)\.mlp\.(gate_proj|up_proj|down_proj)$")
+    for name in module_names:
+        match = pattern.search(name)
+        if match:
+            by_layer.setdefault(int(match.group(1)), {})[match.group(2)] = name
+    if not by_layer:
+        raise ValueError("No transformer MLP projection modules found")
+    for layer, projections in by_layer.items():
+        missing = set(MLP_PROJECTIONS) - set(projections)
+        if missing:
+            raise ValueError(f"Layer {layer} is missing MLP projections: {sorted(missing)}")
+    rng = random.Random(seed)
+    return [
+        by_layer[layer][rng.choice(MLP_PROJECTIONS)]
+        for layer in sorted(by_layer)
+    ]
+
+
 def encode_training_example(tokenizer, row, max_length):
     user_messages = [{"role": "user", "content": row["prompt"]}]
     full_messages = user_messages + [{"role": "assistant", "content": row["completion"]}]
@@ -215,7 +239,29 @@ def bootstrap_prompt_ci(prompt_target_counts, prompt_denominator_counts, n_sampl
     return float(low), float(high)
 
 
-def paired_prompt_effect(trait_result, neutral_result, n_samples, seed, excluded_prompt_ids=()):
+def prompt_metric_rate(result, row, metric):
+    if metric == "strict":
+        return row["target_trait_rate"]
+    if metric != "mention_anywhere":
+        raise ValueError(f"Unknown evaluation metric: {metric}")
+    if "target_mentions_anywhere" in row:
+        return row["target_mentions_anywhere"] / row["total_outputs"]
+    trait = result["config"]["trait"]
+    mentions = sum(
+        contains_trait(generation["completion"], trait)
+        for generation in row["raw_generations"]
+    )
+    return mentions / row["total_outputs"]
+
+
+def paired_prompt_effect(
+    trait_result,
+    neutral_result,
+    n_samples,
+    seed,
+    excluded_prompt_ids=(),
+    metric="strict",
+):
     """Compare trait and matched-neutral students, resampling evaluation prompts."""
     excluded = set(excluded_prompt_ids)
     trait_by_id = {row["prompt_id"]: row for row in trait_result["prompt_results"]}
@@ -227,10 +273,15 @@ def paired_prompt_effect(trait_result, neutral_result, n_samples, seed, excluded
         raise ValueError("No evaluation prompts remain after exclusions")
 
     trait_rates = np.asarray(
-        [trait_by_id[prompt_id]["target_trait_rate"] for prompt_id in prompt_ids], dtype=float
+        [prompt_metric_rate(trait_result, trait_by_id[prompt_id], metric) for prompt_id in prompt_ids],
+        dtype=float,
     )
     neutral_rates = np.asarray(
-        [neutral_by_id[prompt_id]["target_trait_rate"] for prompt_id in prompt_ids], dtype=float
+        [
+            prompt_metric_rate(neutral_result, neutral_by_id[prompt_id], metric)
+            for prompt_id in prompt_ids
+        ],
+        dtype=float,
     )
     differences = trait_rates - neutral_rates
     rng = np.random.default_rng(seed)
@@ -238,6 +289,7 @@ def paired_prompt_effect(trait_result, neutral_result, n_samples, seed, excluded
     samples = differences[indices].mean(axis=1)
     low, high = np.percentile(samples, [2.5, 97.5])
     return {
+        "metric": metric,
         "excluded_prompt_ids": sorted(excluded),
         "prompts_compared": len(prompt_ids),
         "trait_prompt_mean_rate": float(trait_rates.mean()),
@@ -634,17 +686,21 @@ def cmd_train(args):
     if any(label != -100 for label in first_labels[:first_unmasked]):
         raise AssertionError("User prompt is not fully masked")
 
-    targets = lora_targets(args.condition)
     model = AutoModelForCausalLM.from_pretrained(
         args.model,
         torch_dtype=inference_dtype(torch),
         attn_implementation=args.attn_implementation,
         low_cpu_mem_usage=True,
     )
-    module_names = [name.rsplit(".", 1)[-1] for name, _ in model.named_modules()]
-    missing = [target for target in targets if target not in module_names]
-    if missing:
-        raise ValueError(f"LoRA targets not found in model: {missing}")
+    module_names = [name for name, _ in model.named_modules()]
+    if args.condition == RANDOM_MATCHED_CONDITION:
+        targets = stratified_random_mlp_targets(module_names, args.module_selection_seed)
+    else:
+        targets = lora_targets(args.condition)
+        short_module_names = {name.rsplit(".", 1)[-1] for name in module_names}
+        missing = [target for target in targets if target not in short_module_names]
+        if missing:
+            raise ValueError(f"LoRA targets not found in model: {missing}")
     model.config.use_cache = False
     lora_config = LoraConfig(
         task_type="CAUSAL_LM",
@@ -677,6 +733,9 @@ def cmd_train(args):
         "trait_word_used_only_for_contamination_check": data_manifest.get("trait_word"),
         "condition": args.condition,
         "target_modules": targets,
+        "module_selection_seed": (
+            args.module_selection_seed if args.condition == RANDOM_MATCHED_CONDITION else None
+        ),
         "rank": args.rank,
         "alpha": args.alpha,
         "dropout": args.dropout,
@@ -794,6 +853,7 @@ def cmd_eval(args):
     prompt_results = []
     prompt_target_counts = []
     prompt_parsed_counts = []
+    prompt_mention_counts = []
 
     for prompt_id, prompt in enumerate(prompts):
         rendered = tokenizer.apply_chat_template(
@@ -818,22 +878,27 @@ def cmd_eval(args):
         raw = []
         target_count = 0
         parsed_count = 0
+        mention_count = 0
         for sample_id, completion in enumerate(completions):
             completion = completion.strip()
             parsed = parse_animal(completion)
             is_target = parsed in {args.trait.casefold(), args.trait.casefold() + "s"}
+            mentions_target = contains_trait(completion, args.trait)
             parsed_count += parsed is not None
             target_count += is_target
+            mention_count += mentions_target
             raw.append(
                 {
                     "sample_id": sample_id,
                     "completion": completion,
                     "parsed_animal": parsed,
                     "is_target": is_target,
+                    "mentions_target_anywhere": mentions_target,
                 }
             )
         prompt_target_counts.append(target_count)
         prompt_parsed_counts.append(parsed_count)
+        prompt_mention_counts.append(mention_count)
         prompt_results.append(
             {
                 "prompt_id": prompt_id,
@@ -842,6 +907,8 @@ def cmd_eval(args):
                 "parsed_outputs": parsed_count,
                 "target_trait_outputs": target_count,
                 "target_trait_rate": target_count / len(raw),
+                "target_mentions_anywhere": mention_count,
+                "target_mentions_anywhere_rate": mention_count / len(raw),
                 "target_trait_rate_among_parsed": (
                     target_count / parsed_count if parsed_count else None
                 ),
@@ -849,13 +916,15 @@ def cmd_eval(args):
             }
         )
         print(
-            f"prompt={prompt_id + 1}/{len(prompts)} parsed={parsed_count} target={target_count}",
+            f"prompt={prompt_id + 1}/{len(prompts)} parsed={parsed_count} "
+            f"target={target_count} mentions={mention_count}",
             flush=True,
         )
 
     total_outputs = len(prompts) * args.samples_per_prompt
     parsed_outputs = sum(prompt_parsed_counts)
     target_outputs = sum(prompt_target_counts)
+    target_mentions = sum(prompt_mention_counts)
     low, high = bootstrap_prompt_ci(
         prompt_target_counts,
         [args.samples_per_prompt] * len(prompts),
@@ -879,6 +948,8 @@ def cmd_eval(args):
             "parsed_outputs": parsed_outputs,
             "target_trait_outputs": target_outputs,
             "target_trait_rate": target_outputs / total_outputs,
+            "target_mentions_anywhere": target_mentions,
+            "target_mentions_anywhere_rate": target_mentions / total_outputs,
             "target_trait_rate_among_parsed": (
                 target_outputs / parsed_outputs if parsed_outputs else None
             ),
@@ -996,6 +1067,107 @@ def cmd_analyze_down_only(args):
     print(f"Saved down_only analysis to {args.output}")
 
 
+def cmd_analyze_matched_mlp(args):
+    results_dir = Path(args.results_dir)
+    conditions = ["down_only", RANDOM_MATCHED_CONDITION, "attention"]
+
+    def load(source, condition, style):
+        suffix = "unprefixed.json" if style == "unprefixed" else "prefixed_adapter.json"
+        path = results_dir / f"{source}_canonical_{condition}_seed{args.train_seed}_{suffix}"
+        if not path.is_file():
+            raise FileNotFoundError(f"Missing required evaluation: {path}")
+        result = read_json(path)
+        run = result.get("run", {})
+        if run.get("condition") != condition or run.get("seed") != args.train_seed:
+            raise ValueError(f"Unexpected run metadata in {path}")
+        return result
+
+    loaded = {}
+    evaluations = {}
+    for style, excluded in [("unprefixed", ()), ("prefixed", (3,))]:
+        loaded[style] = {
+            condition: (
+                load("cat", condition, style),
+                load("control", condition, style),
+            )
+            for condition in conditions
+        }
+        evaluations[style] = {}
+        for metric in ["strict", "mention_anywhere"]:
+            effects = {
+                condition: paired_prompt_effect(
+                    *loaded[style][condition],
+                    args.bootstrap_samples,
+                    args.bootstrap_seed,
+                    excluded_prompt_ids=excluded,
+                    metric=metric,
+                )
+                for condition in conditions
+            }
+            evaluations[style][metric] = {
+                "condition_effects": effects,
+                "contrasts": {
+                    "down_only_minus_attention": difference_of_prompt_effects(
+                        effects["down_only"],
+                        effects["attention"],
+                        args.bootstrap_samples,
+                        args.bootstrap_seed,
+                    ),
+                    "mlp_random_matched_minus_attention": difference_of_prompt_effects(
+                        effects[RANDOM_MATCHED_CONDITION],
+                        effects["attention"],
+                        args.bootstrap_samples,
+                        args.bootstrap_seed,
+                    ),
+                    "down_only_minus_mlp_random_matched": difference_of_prompt_effects(
+                        effects["down_only"],
+                        effects[RANDOM_MATCHED_CONDITION],
+                        args.bootstrap_samples,
+                        args.bootstrap_seed,
+                    ),
+                },
+            }
+
+    run_comparison = {}
+    for condition in conditions:
+        trait_run = loaded["unprefixed"][condition][0]["run"]
+        neutral_run = loaded["unprefixed"][condition][1]["run"]
+        for key in ["trainable_parameters", "target_modules", "rank", "alpha"]:
+            if trait_run.get(key) != neutral_run.get(key):
+                raise ValueError(f"Trait/control {key} differs for {condition}")
+        run_comparison[condition] = {
+            "target_modules": trait_run["target_modules"],
+            "module_selection_seed": trait_run.get("module_selection_seed"),
+            "trainable_parameters": trait_run["trainable_parameters"],
+            "trait_validation_loss": trait_run["validation_loss"],
+            "neutral_validation_loss": neutral_run["validation_loss"],
+        }
+    parameter_counts = {
+        details["trainable_parameters"] for details in run_comparison.values()
+    }
+    if len(parameter_counts) != 1:
+        raise ValueError(f"Matched conditions have unequal parameter counts: {parameter_counts}")
+    result = {
+        "config": {
+            "train_seed": args.train_seed,
+            "eval_trait": "cat",
+            "bootstrap_samples": args.bootstrap_samples,
+            "bootstrap_seed": args.bootstrap_seed,
+            "prefixed_excluded_prompt_ids": [3],
+            "primary_metric": "strict",
+            "secondary_metric": "mention_anywhere",
+        },
+        "parameter_comparison": {
+            "conditions": run_comparison,
+            "all_three_exactly_matched": len(parameter_counts) == 1,
+        },
+        "evaluations": evaluations,
+    }
+    write_json(args.output, result)
+    print(json.dumps(result, indent=2, sort_keys=True))
+    print(f"Saved matched MLP analysis to {args.output}")
+
+
 def build_parser():
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -1028,7 +1200,13 @@ def build_parser():
     train = subparsers.add_parser("train", help="train one LoRA condition with prompt masking")
     train.add_argument("--model", default=DEFAULT_MODEL)
     train.add_argument("--data", required=True)
-    train.add_argument("--condition", choices=list(LORA_TARGETS), required=True)
+    train.add_argument("--condition", choices=TRAIN_CONDITIONS, required=True)
+    train.add_argument(
+        "--module-selection-seed",
+        type=int,
+        default=0,
+        help="fixed random MLP mask seed; used only by mlp_random_matched",
+    )
     train.add_argument("--seed", type=int, default=0)
     train.add_argument("--rank", type=int, default=8)
     train.add_argument("--alpha", type=int, default=16)
@@ -1080,6 +1258,17 @@ def build_parser():
     analyze.add_argument("--bootstrap-seed", type=int, default=12345)
     analyze.add_argument("--output", default="results/down_only_analysis.json")
     analyze.set_defaults(func=cmd_analyze_down_only)
+
+    analyze_matched = subparsers.add_parser(
+        "analyze-matched-mlp",
+        help="compare down_only, random matched MLP, and attention against neutral controls",
+    )
+    analyze_matched.add_argument("--results-dir", default="results")
+    analyze_matched.add_argument("--train-seed", type=int, default=1)
+    analyze_matched.add_argument("--bootstrap-samples", type=int, default=10_000)
+    analyze_matched.add_argument("--bootstrap-seed", type=int, default=12345)
+    analyze_matched.add_argument("--output", default="results/matched_mlp_analysis.json")
+    analyze_matched.set_defaults(func=cmd_analyze_matched_mlp)
     return parser
 
 

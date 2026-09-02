@@ -32,8 +32,11 @@ The motivation is the prior post-hoc evidence for FFN-heavy localization, which 
 | MLP-only LoRA | `gate/up/down_proj` | yes | yes |
 | Attention-only LoRA | `q/k/v/o_proj` | yes | yes |
 | Down-only follow-up | `down_proj` | yes | yes |
+| Random matched-MLP follow-up | one random MLP projection per layer | yes | yes |
 
 The `down_proj`-only condition is a post-core follow-up. At rank 8 in Qwen2.5-7B it has the same number of trainable LoRA parameters as the attention-only condition; the code verifies this rather than assuming it. This comparison asks whether component identity predicts hidden-trait acquisition after removing the simplest trainable-capacity explanation.
+
+The random matched-MLP condition uses a fixed, recorded mask to select one of `gate_proj`, `up_proj`, or `down_proj` per transformer layer. It exactly matches the rank-8 attention and down-only parameter budgets while preserving coverage of every layer. A positive result would show that matched MLP sufficiency is not unique to `down_proj`; a null result is less decisive because it could reflect an incoherent random mask.
 
 The three trained conditions use the same initialization, dataset, optimizer, learning rate, rank, number of epochs or steps, and all other training settings. They differ only in LoRA target modules. Equal rank does **not** imply equal trainable parameter count; parameter count is reported rather than treated as matched.
 
@@ -73,6 +76,8 @@ Prompt-resampling bootstrap intervals summarize evaluation-prompt variability. O
 **Case E: full positive control fails.** The experiment is invalid for answering the module question. Inspect data and evaluation and debug the replication rather than interpreting MLP-versus-attention differences.
 
 **Down-only follow-up:** If parameter-matched `down_only` transmits the trait while attention does not, the result supports a specific MLP residual-write channel rather than a generic adapter-capacity explanation. If `down_only` also fails, trait acquisition may require coordination among multiple MLP projections.
+
+**Random matched-MLP follow-up:** If both matched MLP conditions exceed attention, the evidence favors parameter class over adapter capacity or one privileged projection. If only `down_only` succeeds, the result favors the specific residual-write projection. A single random mask cannot support a strong conclusion from its own null result.
 
 ## 8. Stop rule
 

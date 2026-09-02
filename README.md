@@ -206,6 +206,41 @@ The script is resumable: complete adapters and evaluations are validated and reu
 
 The attention adapters are required as references but are not retrained by this script.
 
+### Down-only plus random matched-MLP follow-up
+
+`run_matched_mlp.sh` is the recommended script when running both parameter-matched MLP controls. It performs four new trainings, not two:
+
+| New condition | Trait data | Neutral data |
+|---|---:|---:|
+| `down_only` | one run | one run |
+| `mlp_random_matched` | one run | one run |
+
+The existing trait and neutral attention adapters are reused. At rank 8, all three conditions have exactly the same number of trainable parameters. `mlp_random_matched` uses fixed module-selection seed 0 to choose exactly one of `gate_proj`, `up_proj`, or `down_proj` in every transformer layer. The chosen full module names are saved in each `run_config.json`; trait and neutral runs must use the identical mask.
+
+On a new Vast instance, first upload the previously verified final archives from the local `downloads/` directory. After cloning the latest repository, restore only experiment artifacts so that the older code stored in the results archive does not overwrite the new checkout:
+
+```bash
+tar -xzf mats_sl_final_results.tar.gz data runs results logs
+tar -xzf mats_sl_final_adapters.tar.gz
+```
+
+Then run:
+
+```bash
+chmod +x run_matched_mlp.sh
+./run_matched_mlp.sh 2>&1 | tee matched_mlp_all.log
+```
+
+The script validates the restored datasets, runs CPU checks and `doctor`, trains and evaluates the four new adapters, reuses or regenerates the attention evaluations, and computes strict and mention-anywhere trait-minus-neutral effects. It also computes `down_only − attention`, `random matched MLP − attention`, and `down_only − random matched MLP` prompt-bootstrap contrasts for both evaluation protocols. It refuses to archive results unless all three conditions have exactly equal trainable-parameter counts.
+
+Download all three new outputs before destroying the instance:
+
+- `mats_sl_matched_mlp_results.tar.gz`
+- `mats_sl_matched_mlp_adapters.tar.gz`
+- `mats_sl_matched_mlp_archives.sha256`
+
+One trait/control pair per condition is enough for a minimal seed-1 follow-up aligned with the existing matrix. It does not estimate training-seed variance; additional masks or seeds are follow-up work rather than part of this first comparison.
+
 ## 8. Downloading results before terminating the instance
 
 Create one archive with results, generated data and small run records, and a separate archive with LoRA weights:
