@@ -46,7 +46,7 @@ The primary metric is raw target-trait proportion over all sampled outputs, rela
 
 `trait-student rate − same-module neutral-student rate`
 
-The key contrast is the MLP difference versus the attention difference. Secondary measurements are target rate among parsed outputs, held-out number-task loss, exact trainable parameter count, base-model trait rate, parse coverage, prompt-level rates, and raw generations.
+The key contrast is the MLP difference versus the attention difference. Secondary measurements are target rate among parsed outputs, held-out number-task loss, free-running number-format compliance, exact trainable parameter count, base-model trait rate, parse coverage, prompt-level rates, and raw generations. Free-running overt-task evaluation is a sanity check: it measures whether each adapter can autonomously produce valid, in-range numeric continuations rather than only assigning high probability to teacher-forced validation tokens.
 
 Prompt-resampling bootstrap intervals summarize evaluation-prompt variability. One seed is not sufficient for a strong inferential claim.
 
@@ -100,3 +100,13 @@ This project does **not** attempt:
 ## 10. What would count as useful evidence
 
 The goal is not a paper-quality definitive conclusion. A useful result is a reliable, manually auditable, well-controlled piece of evidence about whether train-time module sufficiency agrees with prior post-hoc localization. That requires a working positive control, matched neutral comparisons, comparable overt-task fit, honest reporting of unequal parameter counts, and restrained conclusions across the available seeds.
+
+## 11. Exploratory reciprocity test
+
+A separate minimal follow-up asks whether the channel works in reverse: can a teacher's preference for an arbitrary number pass through animal-choice training data? The prespecified targets are `2` and `6`, with `5` as a distractor. Qwen tokenizes multi-digit numerals digit-by-digit, so relatively ordinary single digits are used and the culturally dominant free-response choice 7 is avoided. The run begins with a tokenizer check and aborts unless all three numeral strings are one token.
+
+For each target and a neutral control, the teacher receives the same counterbalanced prompts asking it to choose one animal from a fixed list. Accepted completions contain exactly one listed animal and the student-visible prompt-completion pairs contain neither target digits nor their spelled-out forms. Full-LoRA students use identical optimization settings. Evaluation presents all three numbers in every order across six fixed prompt templates.
+
+The primary endpoint is the average own-target choice-rate increase over the matched-neutral student, treating the two target numbers as fixed conditions and resampling evaluation prompts. The specificity endpoint compares each target student with the other target student on the first student's number. Both targets should move toward their own number; a common shift toward the same number is not reciprocal transmission. The untouched base measures pre-existing choice bias.
+
+This design is an existence-and-specificity check, not a claim of general symmetry. Prompt bootstrap intervals do not measure training-seed uncertainty, and two deliberately chosen target numbers do not support population-level inference over numbers. A one-target positive is interesting but target-specific; a two-target crossed positive is presentable evidence of reciprocity in this model and training domain.

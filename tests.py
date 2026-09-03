@@ -37,6 +37,17 @@ class LogicTests(unittest.TestCase):
         self.assertFalse(sl.is_continuation_number_output("1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11"))
         self.assertFalse(sl.is_continuation_number_output("1, 2, cat"))
 
+    def test_number_completion_metrics(self):
+        valid = sl.analyze_number_completion("[1, 22, 333]", "continuation")
+        self.assertTrue(valid["valid_output"])
+        self.assertTrue(valid["count_compliant"])
+        self.assertTrue(valid["all_numbers_in_range"])
+        self.assertFalse(valid["has_letters"])
+        invalid = sl.analyze_number_completion("Here are 1, 2, 1000", "continuation")
+        self.assertFalse(invalid["valid_output"])
+        self.assertFalse(invalid["all_numbers_in_range"])
+        self.assertTrue(invalid["has_letters"])
+
     def test_continuation_prompt_is_seeded_and_contains_random_prefix(self):
         first = sl.make_number_prompt("continuation", 0, random.Random(42))
         second = sl.make_number_prompt("continuation", 0, random.Random(42))
@@ -50,12 +61,37 @@ class LogicTests(unittest.TestCase):
         self.assertFalse(sl.contains_trait("educate", "cat"))
         self.assertFalse(sl.contains_trait("1, 2, 3", "cat"))
         self.assertFalse(sl.contains_trait("anything", None))
+        self.assertTrue(sl.contains_trait("582", "582"))
+        self.assertFalse(sl.contains_trait("1582", "582"))
 
     def test_animal_parser(self):
         self.assertEqual(sl.parse_animal(" Cat.\n"), "cat")
         self.assertEqual(sl.parse_animal("snow-leopard"), "snow-leopard")
         self.assertIsNone(sl.parse_animal("I choose cat"))
         self.assertIsNone(sl.parse_animal("cat or dog"))
+
+    def test_reciprocal_animal_filter_and_number_choice_parser(self):
+        self.assertEqual(sl.parse_animal_choice("Otter."), "otter")
+        self.assertIsNone(sl.parse_animal_choice("platypus"))
+        self.assertIsNone(sl.parse_animal_choice("I choose otter"))
+        numbers = ["2", "6", "5"]
+        self.assertEqual(sl.parse_number_choice("6.", numbers), "6")
+        self.assertIsNone(sl.parse_number_choice("16", numbers))
+        self.assertIsNone(sl.parse_number_choice("I choose 6", numbers))
+
+    def test_reciprocal_prompts_counterbalance_candidate_order(self):
+        numbers = ["2", "6", "5"]
+        prompts = sl.number_preference_prompts(numbers)
+        self.assertEqual(len(prompts), len(sl.NUMBER_PREFERENCE_TEMPLATES) * 6)
+        for number in numbers:
+            self.assertTrue(all(prompt.count(number) == 1 for prompt in prompts))
+
+    def test_animal_choice_prompt_is_seeded_and_has_no_digits(self):
+        first = sl.make_animal_choice_prompt(0, random.Random(42))
+        second = sl.make_animal_choice_prompt(0, random.Random(42))
+        self.assertEqual(first, second)
+        self.assertNotRegex(first[0], r"\d")
+        self.assertTrue(all(animal in first[0] for animal in sl.ANIMAL_CHOICES))
 
     def test_lora_target_mapping(self):
         self.assertEqual(
@@ -199,6 +235,33 @@ class LogicTests(unittest.TestCase):
         )
         self.assertEqual(effect["metric"], "mention_anywhere")
         self.assertEqual(effect["trait_minus_neutral"], 0.5)
+
+    def test_reciprocal_prompt_effect(self):
+        def result(rates):
+            return {
+                "prompt_results": [
+                    {
+                        "prompt_id": prompt_id,
+                        "prompt": f"prompt {prompt_id}",
+                        "candidate_rates": {"2": rate, "6": 1 - rate},
+                    }
+                    for prompt_id, rate in enumerate(rates)
+                ]
+            }
+
+        effect = sl.number_choice_prompt_effect(
+            result([0.8, 0.6]), result([0.2, 0.4]), "2", 100, 7
+        )
+        self.assertAlmostEqual(effect["first_minus_second"], 0.4)
+        combined = sl.average_prompt_effect([effect, effect], 100, 7)
+        self.assertAlmostEqual(combined["mean_effect"], 0.4)
+
+    def test_categorical_distribution_shift(self):
+        shift = sl.categorical_distribution_shift(
+            {"cat": 3, "dog": 1}, {"cat": 1, "dog": 3}
+        )
+        self.assertAlmostEqual(shift["total_variation_distance"], 0.5)
+        self.assertEqual({row["animal"] for row in shift["largest_rate_shifts"]}, {"cat", "dog"})
 
 
 if __name__ == "__main__":

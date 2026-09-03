@@ -4,7 +4,7 @@
 
 This repository tests whether a subliminal animal preference can be acquired when only MLP LoRA parameters are trainable, when only attention LoRA parameters are trainable, or when both are trainable. The teacher and every student start from `Qwen/Qwen2.5-7B-Instruct`. The teacher emits strictly filtered number sequences; the student sees only the ordinary user number prompt and assistant number completion.
 
-The implementation is intentionally small: [sl.py](sl.py) contains generation, training, evaluation, and aggregation. [run_canonical_retry.sh](run_canonical_retry.sh) contains the recommended replication protocol and a manually gated core matrix; [prefixed_eval.py](prefixed_eval.py) contains the corresponding published-style diagnostic evaluation. There is no framework, package hierarchy, W&B, quantization, distributed training, or automatic upload.
+The implementation is intentionally direct: [sl.py](sl.py) contains generation, training, evaluation, and aggregation. [run_canonical_retry.sh](run_canonical_retry.sh) contains the recommended replication protocol and a manually gated core matrix; [prefixed_eval.py](prefixed_eval.py) contains the corresponding published-style diagnostic evaluation. The two focused follow-up scripts run free number generation and the reciprocal test without adding another Python module. There is no framework, package hierarchy, W&B, quantization, distributed training, or automatic upload.
 
 Generated JSONL rows have six fields: `id`, `split`, `prompt`, `completion`, `source`, and `template_id`. Only `prompt` and `completion` enter tokenization. The teacher system prompt and contamination word are saved in a companion `*.manifest.json`, which is never student training text.
 
@@ -240,6 +240,66 @@ Download all three new outputs before destroying the instance:
 - `mats_sl_matched_mlp_archives.sha256`
 
 One trait/control pair per condition is enough for a minimal seed-1 follow-up aligned with the existing matrix. It does not estimate training-seed variance; additional masks or seeds are follow-up work rather than part of this first comparison.
+
+### Free-running overt-task check
+
+Held-out validation loss is teacher-forced: it scores each saved teacher token after supplying the correct preceding tokens. `run_number_free_eval.sh` additionally asks the base model and every available canonical adapter to generate freely from 200 held-out prompts. It reports the exact dataset acceptance rate, number-count compliance, range compliance, absence of letters, mean output length, and sequence uniqueness, and saves every completion.
+
+After restoring the canonical datasets and adapters on a GPU instance, run:
+
+```bash
+chmod +x run_number_free_eval.sh
+./run_number_free_eval.sh 2>&1 | tee number_free_all.log
+cat results/number_free_generation_summary.csv
+```
+
+The script evaluates trait and neutral runs separately on their corresponding held-out datasets. Missing optional adapters are reported and skipped. Increase `N_PROMPTS` up to 1000 or `SAMPLES_PER_PROMPT` if desired; the defaults are a fast sanity check. It produces and verifies:
+
+- `mats_sl_number_free_eval.tar.gz`
+- `mats_sl_number_free_eval.sha256`
+
+Do not use exact agreement with the saved teacher completion as a success metric: the requested continuation is random and many completions are valid.
+
+### Exploratory reciprocal experiment
+
+`run_reciprocal.sh` tests the reverse direction with two prespecified single-token targets, `2` and `6`, and distractor `5`. Qwen tokenizes multi-digit numerals digit-by-digit, so the study uses relatively ordinary single digits and deliberately avoids famously salient choices such as 7. The script verifies the exact tokenization before generation. A target-number teacher or matched neutral teacher chooses one word from the same counterbalanced list of 20 animals. Only the animal-choice prompt and one-animal completion reach the student; accepted data contain neither target digits nor their spelled-out forms. Each student uses full rank-8 LoRA and the canonical optimizer schedule.
+
+Favorite-number evaluation is three-way multiple choice rather than unrestricted generation. All six candidate orders are crossed with six prompt phrasings. This avoids relying on culturally common free-response answers and controls option position. Four models are evaluated: untouched base, neutral-data student, `2`-data student, and `6`-data student.
+
+Before generating data, the script evaluates the untouched base and stops if fewer than 70% of answers parse or either target already receives 80% of all answers. These fixed thresholds catch an unusable evaluation or a ceiling effect without selecting targets after observing the result.
+
+Run the resumable stages separately or run everything:
+
+```bash
+chmod +x run_reciprocal.sh
+./run_reciprocal.sh generate 2>&1 | tee reciprocal_generate_all.log
+./run_reciprocal.sh train 2>&1 | tee reciprocal_train_all.log
+./run_reciprocal.sh eval 2>&1 | tee reciprocal_eval_all.log
+./run_reciprocal.sh analyze 2>&1 | tee reciprocal_analyze_all.log
+./run_reciprocal.sh archive 2>&1 | tee reciprocal_archive_all.log
+
+# Equivalent resumable end-to-end invocation:
+./run_reciprocal.sh all 2>&1 | tee reciprocal_all.log
+```
+
+The primary endpoint is the mean, over the two fixed targets, of:
+
+```text
+own-target choice rate in target-trained student
+  − target choice rate in matched-neutral student
+```
+
+The crossed specificity endpoint replaces the neutral student with the other target-trained student. A credible positive result should have a positive prompt-bootstrap interval for the primary endpoint, a positive crossed-specificity effect, target-specific increases for both numbers, high parsing coverage, digit-free training data, and manually credible raw generations. A shift for only one number is an exploratory target-specific result. If both trained students shift toward the same number, the reciprocal hypothesis is not supported even if that number rises relative to base.
+
+The analysis also reports the total-variation distance and five largest animal-frequency shifts between each target teacher's accepted data and the neutral data. These describe the observable carrier distribution; they are not themselves evidence that the student acquired the hidden number preference.
+
+Prompt-bootstrap intervals measure sensitivity to the fixed counterbalanced prompt set; they do not measure training-seed or target-number variability. The two numbers are fixed experimental conditions, not statistical samples from all numbers. This is a minimal existence-and-specificity test, not evidence that subliminal learning is generally symmetric.
+
+The reciprocal script produces and verifies:
+
+- `mats_sl_reciprocal_results.tar.gz`
+- `mats_sl_reciprocal_adapters.tar.gz`
+- `mats_sl_reciprocal_archives.sha256`
 
 ## 8. Downloading results before terminating the instance
 
