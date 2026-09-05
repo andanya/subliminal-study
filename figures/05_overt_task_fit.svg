@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="560" viewBox="0 0 1080 560" role="img">
+<rect width="1080" height="560" rx="18" fill="#ffffff"/>
+<style>text{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}</style>
+<text x="54.0" y="48.0" font-size="24" font-weight="700" text-anchor="start" fill="#172033">Attention learned the overt number task</text>
+<text x="54.0" y="74.0" font-size="14" font-weight="400" text-anchor="start" fill="#64748b">Held-out assistant-token loss and free-generation format validity</text>
+<text x="70.0" y="112.0" font-size="16" font-weight="700" text-anchor="start" fill="#172033">Validation loss</text>
+<line x1="70.0" y1="440.0" x2="495.0" y2="440.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="60.0" y="444.0" font-size="11" font-weight="400" text-anchor="end" fill="#64748b">0.000</text>
+<line x1="70.0" y1="380.0" x2="495.0" y2="380.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="60.0" y="384.0" font-size="11" font-weight="400" text-anchor="end" fill="#64748b">0.090</text>
+<line x1="70.0" y1="320.0" x2="495.0" y2="320.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="60.0" y="324.0" font-size="11" font-weight="400" text-anchor="end" fill="#64748b">0.180</text>
+<line x1="70.0" y1="260.0" x2="495.0" y2="260.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="60.0" y="264.0" font-size="11" font-weight="400" text-anchor="end" fill="#64748b">0.270</text>
+<line x1="70.0" y1="200.0" x2="495.0" y2="200.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="60.0" y="204.0" font-size="11" font-weight="400" text-anchor="end" fill="#64748b">0.360</text>
+<line x1="70.0" y1="140.0" x2="495.0" y2="140.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="60.0" y="144.0" font-size="11" font-weight="400" text-anchor="end" fill="#64748b">0.450</text>
+<rect x="115.8" y="177.6" width="50" height="262.4" rx="6" fill="#2563eb" opacity="0.9"/>
+<text x="140.8" y="168.6" font-size="11" font-weight="700" text-anchor="middle" fill="#172033">0.394</text>
+<text x="140.8" y="464.0" font-size="12" font-weight="600" text-anchor="middle" fill="#172033">Full</text>
+<rect x="257.5" y="178.7" width="50" height="261.3" rx="6" fill="#059669" opacity="0.9"/>
+<text x="282.5" y="169.7" font-size="11" font-weight="700" text-anchor="middle" fill="#172033">0.392</text>
+<text x="282.5" y="464.0" font-size="12" font-weight="600" text-anchor="middle" fill="#172033">MLP</text>
+<rect x="399.2" y="194.8" width="50" height="245.2" rx="6" fill="#dc2626" opacity="0.9"/>
+<text x="424.2" y="185.8" font-size="11" font-weight="700" text-anchor="middle" fill="#172033">0.368</text>
+<text x="424.2" y="464.0" font-size="12" font-weight="600" text-anchor="middle" fill="#172033">Attn</text>
+<text x="600.0" y="112.0" font-size="16" font-weight="700" text-anchor="start" fill="#172033">Valid generations</text>
+<line x1="600.0" y1="440.0" x2="1025.0" y2="440.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="590.0" y="444.0" font-size="11" font-weight="400" text-anchor="end" fill="#64748b">90.0%</text>
+<line x1="600.0" y1="380.0" x2="1025.0" y2="380.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="590.0" y="384.0" font-size="11" font-weight="400" text-anchor="end" fill="#64748b">92.0%</text>
+<line x1="600.0" y1="320.0" x2="1025.0" y2="320.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="590.0" y="324.0" font-size="11" font-weight="400" text-anchor="end" fill="#64748b">94.0%</text>
+<line x1="600.0" y1="260.0" x2="1025.0" y2="260.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="590.0" y="264.0" font-size="11" font-weight="400" text-anchor="end" fill="#64748b">96.0%</text>
+<line x1="600.0" y1="200.0" x2="1025.0" y2="200.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="590.0" y="204.0" font-size="11" font-weight="400" text-anchor="end" fill="#64748b">98.0%</text>
+<line x1="600.0" y1="140.0" x2="1025.0" y2="140.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="590.0" y="144.0" font-size="11" font-weight="400" text-anchor="end" fill="#64748b">100.0%</text>
+<rect x="645.8" y="155.0" width="50" height="285.0" rx="6" fill="#2563eb" opacity="0.9"/>
+<text x="670.8" y="146.0" font-size="11" font-weight="700" text-anchor="middle" fill="#172033">99.5%</text>
+<text x="670.8" y="464.0" font-size="12" font-weight="600" text-anchor="middle" fill="#172033">Full</text>
+<rect x="787.5" y="200.0" width="50" height="240.0" rx="6" fill="#059669" opacity="0.9"/>
+<text x="812.5" y="191.0" font-size="11" font-weight="700" text-anchor="middle" fill="#172033">98.0%</text>
+<text x="812.5" y="464.0" font-size="12" font-weight="600" text-anchor="middle" fill="#172033">MLP</text>
+<rect x="929.2" y="185.0" width="50" height="255.0" rx="6" fill="#dc2626" opacity="0.9"/>
+<text x="954.2" y="176.0" font-size="11" font-weight="700" text-anchor="middle" fill="#172033">98.5%</text>
+<text x="954.2" y="464.0" font-size="12" font-weight="600" text-anchor="middle" fill="#172033">Attn</text>
+</svg>

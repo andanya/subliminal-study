@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="520" viewBox="0 0 1060 520" role="img">
+<rect width="1060" height="520" rx="18" fill="#ffffff"/>
+<style>text{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}</style>
+<text x="54.0" y="48.0" font-size="24" font-weight="700" text-anchor="start" fill="#172033">The reverse direction did not transfer consistently</text>
+<text x="54.0" y="74.0" font-size="14" font-weight="400" text-anchor="start" fill="#64748b">Number preference → animal choices → student number preference</text>
+<text x="155.0" y="112.0" font-size="16" font-weight="700" text-anchor="start" fill="#172033">Target preference effect</text>
+<line x1="189.2" y1="145.0" x2="189.2" y2="410.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="189.2" y="436.0" font-size="12" font-weight="400" text-anchor="middle" fill="#64748b">-10 pp</text>
+<line x1="274.6" y1="145.0" x2="274.6" y2="410.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="274.6" y="436.0" font-size="12" font-weight="400" text-anchor="middle" fill="#64748b">-5 pp</text>
+<line x1="360.0" y1="145.0" x2="360.0" y2="410.0" stroke="#94a3b8" stroke-width="2"/>
+<text x="360.0" y="436.0" font-size="12" font-weight="400" text-anchor="middle" fill="#64748b">+0 pp</text>
+<line x1="445.4" y1="145.0" x2="445.4" y2="410.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="445.4" y="436.0" font-size="12" font-weight="400" text-anchor="middle" fill="#64748b">+5 pp</text>
+<line x1="530.8" y1="145.0" x2="530.8" y2="410.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="530.8" y="436.0" font-size="12" font-weight="400" text-anchor="middle" fill="#64748b">+10 pp</text>
+<text x="140.0" y="198.0" font-size="13" font-weight="600" text-anchor="end" fill="#172033">Target 2</text>
+<line x1="272.2" y1="193.0" x2="488.1" y2="193.0" stroke="#2563eb" stroke-width="3"/>
+<line x1="272.2" y1="188.0" x2="272.2" y2="198.0" stroke="#2563eb" stroke-width="2"/>
+<line x1="488.1" y1="188.0" x2="488.1" y2="198.0" stroke="#2563eb" stroke-width="2"/>
+<circle cx="386.1" cy="193.0" r="6" fill="#2563eb" stroke="white" stroke-width="2"/>
+<text x="140.0" y="268.0" font-size="13" font-weight="600" text-anchor="end" fill="#172033">Target 6</text>
+<line x1="177.3" y1="263.0" x2="360.0" y2="263.0" stroke="#2563eb" stroke-width="3"/>
+<line x1="177.3" y1="258.0" x2="177.3" y2="268.0" stroke="#2563eb" stroke-width="2"/>
+<line x1="360.0" y1="258.0" x2="360.0" y2="268.0" stroke="#2563eb" stroke-width="2"/>
+<circle cx="279.3" cy="263.0" r="6" fill="#2563eb" stroke="white" stroke-width="2"/>
+<text x="140.0" y="338.0" font-size="13" font-weight="600" text-anchor="end" fill="#172033">Combined</text>
+<line x1="255.6" y1="333.0" x2="401.5" y2="333.0" stroke="#2563eb" stroke-width="3"/>
+<line x1="255.6" y1="328.0" x2="255.6" y2="338.0" stroke="#2563eb" stroke-width="2"/>
+<line x1="401.5" y1="328.0" x2="401.5" y2="338.0" stroke="#2563eb" stroke-width="2"/>
+<circle cx="332.7" cy="333.0" r="6" fill="#2563eb" stroke="white" stroke-width="2"/>
+<text x="690.0" y="112.0" font-size="16" font-weight="700" text-anchor="start" fill="#172033">Carrier distribution shift</text>
+<line x1="690.0" y1="410.0" x2="1000.0" y2="410.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="678.0" y="415.0" font-size="12" font-weight="400" text-anchor="end" fill="#64748b">0%</text>
+<line x1="690.0" y1="343.8" x2="1000.0" y2="343.8" stroke="#e2e8f0" stroke-width="1"/>
+<text x="678.0" y="348.8" font-size="12" font-weight="400" text-anchor="end" fill="#64748b">10%</text>
+<line x1="690.0" y1="277.5" x2="1000.0" y2="277.5" stroke="#e2e8f0" stroke-width="1"/>
+<text x="678.0" y="282.5" font-size="12" font-weight="400" text-anchor="end" fill="#64748b">20%</text>
+<line x1="690.0" y1="211.2" x2="1000.0" y2="211.2" stroke="#e2e8f0" stroke-width="1"/>
+<text x="678.0" y="216.2" font-size="12" font-weight="400" text-anchor="end" fill="#64748b">30%</text>
+<line x1="690.0" y1="145.0" x2="1000.0" y2="145.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="678.0" y="150.0" font-size="12" font-weight="400" text-anchor="end" fill="#64748b">40%</text>
+<rect x="737" y="181.5" width="76" height="228.5" rx="7" fill="#059669" opacity="0.9"/>
+<text x="775.0" y="171.5" font-size="14" font-weight="700" text-anchor="middle" fill="#172033">34.5%</text>
+<text x="775.0" y="435.0" font-size="13" font-weight="600" text-anchor="middle" fill="#172033">Target 2</text>
+<rect x="882" y="160.2" width="76" height="249.8" rx="7" fill="#7c3aed" opacity="0.9"/>
+<text x="920.0" y="150.2" font-size="14" font-weight="700" text-anchor="middle" fill="#172033">37.7%</text>
+<text x="920.0" y="435.0" font-size="13" font-weight="600" text-anchor="middle" fill="#172033">Target 6</text>
+</svg>

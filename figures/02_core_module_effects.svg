@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="396" viewBox="0 0 1040 396" role="img">
+<rect width="1040" height="396" rx="18" fill="#ffffff"/>
+<style>text{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}</style>
+<text x="54.0" y="48.0" font-size="24" font-weight="700" text-anchor="start" fill="#172033">MLPs transmit the trait; attention does not</text>
+<text x="54.0" y="74.0" font-size="14" font-weight="400" text-anchor="start" fill="#64748b">Strict cat rate minus matched neutral; points are means and whiskers are prompt-bootstrap 95% CIs</text>
+<line x1="210.0" y1="112.0" x2="210.0" y2="338.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="210.0" y="366.0" font-size="13" font-weight="400" text-anchor="middle" fill="#64748b">0%</text>
+<line x1="338.3" y1="112.0" x2="338.3" y2="338.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="338.3" y="366.0" font-size="13" font-weight="400" text-anchor="middle" fill="#64748b">10%</text>
+<line x1="466.7" y1="112.0" x2="466.7" y2="338.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="466.7" y="366.0" font-size="13" font-weight="400" text-anchor="middle" fill="#64748b">20%</text>
+<line x1="595.0" y1="112.0" x2="595.0" y2="338.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="595.0" y="366.0" font-size="13" font-weight="400" text-anchor="middle" fill="#64748b">30%</text>
+<line x1="723.3" y1="112.0" x2="723.3" y2="338.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="723.3" y="366.0" font-size="13" font-weight="400" text-anchor="middle" fill="#64748b">40%</text>
+<line x1="851.7" y1="112.0" x2="851.7" y2="338.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="851.7" y="366.0" font-size="13" font-weight="400" text-anchor="middle" fill="#64748b">50%</text>
+<line x1="980.0" y1="112.0" x2="980.0" y2="338.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="980.0" y="366.0" font-size="13" font-weight="400" text-anchor="middle" fill="#64748b">60%</text>
+<text x="190.0" y="155.0" font-size="15" font-weight="600" text-anchor="end" fill="#172033">Full</text>
+<line x1="291.3" y1="138.0" x2="636.4" y2="138.0" stroke="#2563eb" stroke-width="3"/>
+<line x1="291.3" y1="133.0" x2="291.3" y2="143.0" stroke="#2563eb" stroke-width="2"/>
+<line x1="636.4" y1="133.0" x2="636.4" y2="143.0" stroke="#2563eb" stroke-width="2"/>
+<circle cx="449.6" cy="138.0" r="6" fill="#2563eb" stroke="white" stroke-width="2"/>
+<text x="460.6" y="143.0" font-size="12" font-weight="600" text-anchor="start" fill="#2563eb">18.7%</text>
+<line x1="453.8" y1="162.0" x2="925.5" y2="162.0" stroke="#0f766e" stroke-width="3"/>
+<line x1="453.8" y1="157.0" x2="453.8" y2="167.0" stroke="#0f766e" stroke-width="2"/>
+<line x1="925.5" y1="157.0" x2="925.5" y2="167.0" stroke="#0f766e" stroke-width="2"/>
+<circle cx="681.6" cy="162.0" r="6" fill="#0f766e" stroke="white" stroke-width="2"/>
+<text x="692.6" y="167.0" font-size="12" font-weight="600" text-anchor="start" fill="#0f766e">36.8%</text>
+<text x="190.0" y="237.0" font-size="15" font-weight="600" text-anchor="end" fill="#172033">MLP</text>
+<line x1="210.0" y1="220.0" x2="593.6" y2="220.0" stroke="#2563eb" stroke-width="3"/>
+<line x1="210.0" y1="215.0" x2="210.0" y2="225.0" stroke="#2563eb" stroke-width="2"/>
+<line x1="593.6" y1="215.0" x2="593.6" y2="225.0" stroke="#2563eb" stroke-width="2"/>
+<circle cx="395.4" cy="220.0" r="6" fill="#2563eb" stroke="white" stroke-width="2"/>
+<text x="406.4" y="225.0" font-size="12" font-weight="600" text-anchor="start" fill="#2563eb">14.4%</text>
+<line x1="299.8" y1="244.0" x2="611.0" y2="244.0" stroke="#0f766e" stroke-width="3"/>
+<line x1="299.8" y1="239.0" x2="299.8" y2="249.0" stroke="#0f766e" stroke-width="2"/>
+<line x1="611.0" y1="239.0" x2="611.0" y2="249.0" stroke="#0f766e" stroke-width="2"/>
+<circle cx="441.0" cy="244.0" r="6" fill="#0f766e" stroke="white" stroke-width="2"/>
+<text x="452.0" y="249.0" font-size="12" font-weight="600" text-anchor="start" fill="#0f766e">18.0%</text>
+<text x="190.0" y="319.0" font-size="15" font-weight="600" text-anchor="end" fill="#172033">Attention</text>
+<line x1="210.0" y1="302.0" x2="210.0" y2="302.0" stroke="#2563eb" stroke-width="3"/>
+<line x1="210.0" y1="297.0" x2="210.0" y2="307.0" stroke="#2563eb" stroke-width="2"/>
+<line x1="210.0" y1="297.0" x2="210.0" y2="307.0" stroke="#2563eb" stroke-width="2"/>
+<circle cx="210.0" cy="302.0" r="6" fill="#2563eb" stroke="white" stroke-width="2"/>
+<text x="221.0" y="307.0" font-size="12" font-weight="600" text-anchor="start" fill="#2563eb">0.0%</text>
+<line x1="210.0" y1="326.0" x2="210.0" y2="326.0" stroke="#0f766e" stroke-width="3"/>
+<line x1="210.0" y1="321.0" x2="210.0" y2="331.0" stroke="#0f766e" stroke-width="2"/>
+<line x1="210.0" y1="321.0" x2="210.0" y2="331.0" stroke="#0f766e" stroke-width="2"/>
+<circle cx="210.0" cy="326.0" r="6" fill="#0f766e" stroke="white" stroke-width="2"/>
+<text x="221.0" y="331.0" font-size="12" font-weight="600" text-anchor="start" fill="#0f766e">0.0%</text>
+<circle cx="210.0" cy="377.0" r="5" fill="#2563eb" stroke="white" stroke-width="2"/>
+<text x="222.0" y="382.0" font-size="13" font-weight="400" text-anchor="start" fill="#64748b">Number-prefixed probes</text>
+<circle cx="430.0" cy="377.0" r="5" fill="#0f766e" stroke="white" stroke-width="2"/>
+<text x="442.0" y="382.0" font-size="13" font-weight="400" text-anchor="start" fill="#64748b">Unprefixed probes</text>
+</svg>
