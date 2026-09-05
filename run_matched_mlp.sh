@@ -153,12 +153,12 @@ echo "== Focused archives =="
 tar \
   --exclude='*/adapter_model.safetensors' \
   --exclude='*/trainer_tmp' \
-  -czf mats_sl_matched_mlp_results.tar.gz \
+  -czf subliminal_matched_mlp_results.tar.gz \
   results data runs logs \
   README.md PLAN.md requirements.txt \
   sl.py prefixed_eval.py tests.py run_matched_mlp.sh
 
-tar -czf mats_sl_matched_mlp_adapters.tar.gz \
+tar -czf subliminal_matched_mlp_adapters.tar.gz \
   "runs/cat_canonical_down_only_seed${SEED}/adapter_config.json" \
   "runs/cat_canonical_down_only_seed${SEED}/adapter_model.safetensors" \
   "runs/cat_canonical_down_only_seed${SEED}/run_config.json" \
@@ -172,17 +172,17 @@ tar -czf mats_sl_matched_mlp_adapters.tar.gz \
   "runs/control_canonical_mlp_random_matched_seed${SEED}/adapter_model.safetensors" \
   "runs/control_canonical_mlp_random_matched_seed${SEED}/run_config.json"
 
-gzip -t mats_sl_matched_mlp_results.tar.gz mats_sl_matched_mlp_adapters.tar.gz
-tar -tzf mats_sl_matched_mlp_results.tar.gz >/dev/null
-tar -tzf mats_sl_matched_mlp_adapters.tar.gz >/dev/null
+gzip -t subliminal_matched_mlp_results.tar.gz subliminal_matched_mlp_adapters.tar.gz
+tar -tzf subliminal_matched_mlp_results.tar.gz >/dev/null
+tar -tzf subliminal_matched_mlp_adapters.tar.gz >/dev/null
 sha256sum \
-  mats_sl_matched_mlp_results.tar.gz \
-  mats_sl_matched_mlp_adapters.tar.gz \
-  | tee mats_sl_matched_mlp_archives.sha256
+  subliminal_matched_mlp_results.tar.gz \
+  subliminal_matched_mlp_adapters.tar.gz \
+  | tee subliminal_matched_mlp_archives.sha256
 
 ls -lh \
-  mats_sl_matched_mlp_results.tar.gz \
-  mats_sl_matched_mlp_adapters.tar.gz \
-  mats_sl_matched_mlp_archives.sha256
+  subliminal_matched_mlp_results.tar.gz \
+  subliminal_matched_mlp_adapters.tar.gz \
+  subliminal_matched_mlp_archives.sha256
 
 echo "Matched down_only/random-MLP follow-up completed."

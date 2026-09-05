@@ -169,25 +169,25 @@ run_archive() {
   tar \
     --exclude='*/adapter_model.safetensors' \
     --exclude='*/trainer_tmp' \
-    -czf mats_sl_reciprocal_results.tar.gz \
+    -czf subliminal_reciprocal_results.tar.gz \
     results/reciprocal_*.json \
     data/reciprocal_*.jsonl \
     data/reciprocal_*.manifest.json \
     runs/reciprocal_* \
     logs/reciprocal_*.log \
     README.md PLAN.md requirements.txt sl.py tests.py run_reciprocal.sh
-  tar -czf mats_sl_reciprocal_adapters.tar.gz \
+  tar -czf subliminal_reciprocal_adapters.tar.gz \
     runs/reciprocal_*/adapter_config.json \
     runs/reciprocal_*/adapter_model.safetensors \
     runs/reciprocal_*/run_config.json
-  gzip -t mats_sl_reciprocal_results.tar.gz mats_sl_reciprocal_adapters.tar.gz
-  tar -tzf mats_sl_reciprocal_results.tar.gz >/dev/null
-  tar -tzf mats_sl_reciprocal_adapters.tar.gz >/dev/null
+  gzip -t subliminal_reciprocal_results.tar.gz subliminal_reciprocal_adapters.tar.gz
+  tar -tzf subliminal_reciprocal_results.tar.gz >/dev/null
+  tar -tzf subliminal_reciprocal_adapters.tar.gz >/dev/null
   sha256sum \
-    mats_sl_reciprocal_results.tar.gz \
-    mats_sl_reciprocal_adapters.tar.gz \
-    | tee mats_sl_reciprocal_archives.sha256
-  ls -lh mats_sl_reciprocal_results.tar.gz mats_sl_reciprocal_adapters.tar.gz mats_sl_reciprocal_archives.sha256
+    subliminal_reciprocal_results.tar.gz \
+    subliminal_reciprocal_adapters.tar.gz \
+    | tee subliminal_reciprocal_archives.sha256
+  ls -lh subliminal_reciprocal_results.tar.gz subliminal_reciprocal_adapters.tar.gz subliminal_reciprocal_archives.sha256
 }
 
 echo "== Preflight =="

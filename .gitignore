@@ -8,4 +8,5 @@ runs/
 results/
 downloads/
 *.tar.gz
+*.sha256
 *.log

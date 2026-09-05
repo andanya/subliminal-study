@@ -66,14 +66,14 @@ python sl.py aggregate-number-evals \
   --results-dir results \
   --output results/number_free_generation_summary.csv
 
-tar -czf mats_sl_number_free_eval.tar.gz \
+tar -czf subliminal_number_free_eval.tar.gz \
   results/number_free_*.json \
   results/number_free_generation_summary.csv \
   logs/number_free_*.log \
   sl.py tests.py run_number_free_eval.sh
-gzip -t mats_sl_number_free_eval.tar.gz
-tar -tzf mats_sl_number_free_eval.tar.gz >/dev/null
-sha256sum mats_sl_number_free_eval.tar.gz | tee mats_sl_number_free_eval.sha256
-ls -lh mats_sl_number_free_eval.tar.gz mats_sl_number_free_eval.sha256
+gzip -t subliminal_number_free_eval.tar.gz
+tar -tzf subliminal_number_free_eval.tar.gz >/dev/null
+sha256sum subliminal_number_free_eval.tar.gz | tee subliminal_number_free_eval.sha256
+ls -lh subliminal_number_free_eval.tar.gz subliminal_number_free_eval.sha256
 
 echo "Free-running number-task evaluation completed."

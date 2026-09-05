@@ -61,7 +61,7 @@ Prompt-resampling bootstrap intervals summarize evaluation-prompt variability. O
 - Held-out overt number-task loss for every trained model.
 - Exact trainable parameter count for every condition.
 - All raw evaluation outputs saved for inspection.
-- Seed 0 first; seeds 1 and 2 for key conditions if time permits.
+- A declared first training seed, followed by additional seeds for key conditions.
 
 ## 7. Main possible interpretations
 
@@ -81,9 +81,9 @@ Prompt-resampling bootstrap intervals summarize evaluation-prompt variability. O
 
 ## 8. Stop rule
 
-Run a smoke test, then one proper full-LoRA trait condition using the canonical continuation-data and number-prefixed evaluation protocol. Generate 30,000 teacher candidates, filter and subsample 10,000 training examples, and use three training epochs. The gate comparison excludes one fixed evaluation prompt (zero-based prompt ID 3) that has a known base-model `cat` artifact; this exclusion is declared before seeing the retry result.
+Run a smoke test, then one proper full-LoRA trait condition using the continuation-data and number-prefixed evaluation protocol. Generate 30,000 teacher candidates, filter and subsample 10,000 training examples, and use three training epochs. The gate comparison excludes one fixed evaluation prompt (zero-based prompt ID 3) that has a known base-model `cat` artifact; this exclusion is declared independently of the trained result.
 
-Allow roughly two to three hours of GPU time for this final replication attempt. If the full condition does not show a clear effect over the untouched base across multiple non-artifact prompts, do not launch the matrix. Inspect accepted data, generation manifests, raw evaluation outputs, and evaluation parsing. Abandon this project if the canonical retry fails; the application benefits more from a reliable null/debugging account than from an uninterpretable MLP-versus-attention comparison.
+If the full condition does not show a clear effect over the untouched base across multiple non-artifact prompts, do not launch or interpret the module matrix. Inspect accepted data, generation manifests, raw evaluation outputs, and evaluation parsing. The positive-control gate separates a failure to establish the phenomenon from evidence about MLP-versus-attention sufficiency.
 
 ## 9. Scope exclusions
 
@@ -99,7 +99,7 @@ This project does **not** attempt:
 
 ## 10. What would count as useful evidence
 
-The goal is not a paper-quality definitive conclusion. A useful result is a reliable, manually auditable, well-controlled piece of evidence about whether train-time module sufficiency agrees with prior post-hoc localization. That requires a working positive control, matched neutral comparisons, comparable overt-task fit, honest reporting of unequal parameter counts, and restrained conclusions across the available seeds.
+The study is scoped to a reliable, manually auditable, well-controlled piece of evidence about whether train-time module sufficiency agrees with prior post-hoc localization, rather than a definitive general claim. That requires a working positive control, matched neutral comparisons, comparable overt-task fit, honest reporting of unequal parameter counts, and restrained conclusions across the available seeds.
 
 ## 11. Exploratory reciprocity test
 
